@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ton-Test</title>
+<style>
+body { margin: 0; min-height: 100vh; background: #F6F1EA; color: #3B332C; font-family: ui-rounded, system-ui, sans-serif; display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; }
+main { max-width: 560px; background: #FFFDF9; border-radius: 28px; padding: 32px; box-shadow: 0 1px 3px rgba(59,51,44,0.07); display: flex; flex-direction: column; gap: 18px; }
+h1 { margin: 0; font-size: 30px; }
+p, li { font-size: 18px; line-height: 1.45; margin: 0; }
+ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+button { font: inherit; font-size: 20px; font-weight: 700; height: 64px; padding: 0 26px; border-radius: 32px; border: none; background: #2C6491; color: #FFFDF9; cursor: pointer; }
+button.alt { background: #E2EFF8; color: #2C6491; }
+#log { font-size: 15px; color: #76695D; min-height: 1.5em; }
+</style>
+</head>
+<body>
+<main>
+<h1>Ton-Test für den Putz-Timer</h1>
+<ol>
+<li>Auf dem iPad einen Podcast starten.</li>
+<li>Diese Seite öffnen und auf <b>Wechsel-Ton</b> tippen.</li>
+<li>Läuft der Podcast weiter? Und ist der Ton laut genug?</li>
+</ol>
+<div class="row">
+<button type="button" id="step">Wechsel-Ton</button>
+<button type="button" id="done" class="alt">Fertig-Ton</button>
+</div>
+<p id="log"></p>
+<p>Wenn der Podcast stoppt: Bitte melden, dann schalten wir den Ton standardmäßig aus.</p>
+</main>
+<script>
+(function () {
+  var actx = null, log = document.getElementById('log');
+  function init() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch (e) {}
+    if (!actx) { var AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); }
+    if (actx && actx.state === 'suspended') actx.resume();
+    log.textContent = 'Audio-Modus: ' + (navigator.audioSession ? navigator.audioSession.type : 'nicht verfügbar (älteres iPadOS)');
+  }
+  function chime(kind) {
+    init(); if (!actx) { log.textContent = 'Kein Ton möglich in diesem Browser.'; return; }
+    var t0 = actx.currentTime + 0.03, notes = kind === 'done' ? [659.25, 783.99, 1046.5] : [783.99, 1046.5];
+    notes.forEach(function (f, i) {
+      var o = actx.createOscillator(), g = actx.createGain(), st = t0 + i * 0.17;
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.35, st + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.7);
+      o.connect(g); g.connect(actx.destination); o.start(st); o.stop(st + 0.75);
+    });
+  }
+  document.getElementById('step').addEventListener('click', function () { chime('step'); });
+  document.getElementById('done').addEventListener('click', function () { chime('done'); });
+})();
+</script>
+</body>
+</html>

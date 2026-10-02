@@ -51,7 +51,13 @@
     runter: '<path d="M12 5v14M6.5 13.5L12 19l5.5-5.5"/>',
     sichern: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4.5 19.5h15"/>',
     laden: '<path d="M12 15V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4.5 19.5h15"/>',
-    zurueck: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'
+    zurueck: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+    play: '<path d="M8 5.5v13a1 1 0 0 0 1.5.9l10-6.5a1 1 0 0 0 0-1.7l-10-6.5A1 1 0 0 0 8 5.5z"/>',
+    pause: '<rect x="6.5" y="5" width="3.8" height="14" rx="1.2"/><rect x="13.7" y="5" width="3.8" height="14" rx="1.2"/>',
+    ton: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/>',
+    tonaus: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>',
+    zu: '<path d="M6 6l12 12M18 6L6 18"/>',
+    nochmal: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/>'
   };
   var TASK_ICONS = ['treppe', 'essen', 'wasser', 'pille', 'geschirr', 'zahn', 'kamm', 'gesicht', 'shirt', 'zopf', 'schuh', 'jacke',
     'apfel', 'rucksack', 'muetze', 'buegel', 'flasche', 'heft', 'buch', 'mond', 'waesche', 'spray', 'tropfen', 'bett', 'haus', 'sonne', 'ball', 'stern', 'uhr'];
@@ -90,17 +96,32 @@
   var ALL = [1, 2, 3, 4, 5];
   function T(name, ic, opts) {
     opts = opts || {};
-    return { id: uid('t'), name: name, icon: ic, days: opts.days || ALL.slice(), optional: !!opts.optional, hint: opts.hint || '' };
+    var t = { id: uid('t'), name: name, icon: ic, days: opts.days || ALL.slice(), optional: !!opts.optional, hint: opts.hint || '' };
+    if (opts.steps) { t.steps = opts.steps; t.sound = true; }
+    return t;
+  }
+  function brushSteps() {
+    return [{ id: uid('s'), name: 'Oben rechts', sec: 30 }, { id: uid('s'), name: 'Oben links', sec: 30 },
+      { id: uid('s'), name: 'Unten links', sec: 30 }, { id: uid('s'), name: 'Unten rechts', sec: 30 }];
+  }
+  function hasSteps(t) { return !!(t && t.steps && t.steps.length); }
+  function totalSec(t) { return (t.steps || []).reduce(function (s, x) { return s + (x.sec || 0); }, 0); }
+  function fmtSec(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  function parseSec(v) {
+    v = String(v || '').trim();
+    if (/^\d+:\d{1,2}$/.test(v)) { var p = v.split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10); }
+    var n = parseInt(v, 10);
+    return isNaN(n) ? null : n;
   }
   function defaultConfig() {
     return {
-      version: 1,
+      version: 2,
       pin: '',
       routines: [
         { id: 'morgen', name: 'Morgen', icon: 'sonne', type: 'timeline', label: 'Dein Morgen', goal: 'Los', goalIcon: 'haus', goalText: 'bis Haus verlassen um', blocks: [
           { id: uid('b'), name: 'Aufstehen', start: '06:15', end: '06:30', tasks: [T('Nach unten gehen', 'treppe', { hint: 'um 6:30 am Tisch sitzen' })] },
           { id: uid('b'), name: 'Frühstück', start: '06:30', end: '06:50', tasks: [T('Essen', 'essen'), T('1 Glas Wasser trinken', 'wasser'), T('Concerta nehmen', 'pille'), T('Geschirr in die Küche', 'geschirr')] },
-          { id: uid('b'), name: 'Bad & Umziehen', start: '06:50', end: '07:10', tasks: [T('Zähne putzen', 'zahn'), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Anziehen', 'shirt'), T('Haare zusammenbinden', 'zopf', { days: [1, 3] })] },
+          { id: uid('b'), name: 'Bad & Umziehen', start: '06:50', end: '07:10', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Anziehen', 'shirt'), T('Haare zusammenbinden', 'zopf', { days: [1, 3] })] },
           { id: uid('b'), name: 'Schuhe & Jacke', start: '07:10', end: '07:20', tasks: [T('Schuhe anziehen', 'schuh'), T('Jacke anziehen', 'jacke'), T('Jause einpacken', 'apfel'), T('Schulranzen anschnallen', 'rucksack'), T('Handschuhe & Mütze', 'muetze', { optional: true })] }
         ] },
         { id: 'mittag', name: 'Nach der Schule', icon: 'haus', type: 'checklist', tasks: [
@@ -108,7 +129,7 @@
         ] },
         { id: 'abend', name: 'Abend', icon: 'mond', type: 'timeline', label: 'Dein Abend', goal: 'Bett', goalIcon: 'bett', goalText: 'bis ins Bett um', canShift: true, blocks: [
           { id: uid('b'), name: 'Abendessen', start: '18:30', end: '19:30', tasks: [T('Essen', 'essen'), T('1 Glas Wasser trinken', 'wasser'), T('Geschirr in die Küche', 'geschirr')] },
-          { id: uid('b'), name: 'Hochgehen & Bad', start: '19:30', end: '20:00', tasks: [T('Zähne putzen', 'zahn'), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Schlafanzug anziehen', 'mond'), T('Unterhose & Socken in die Wäsche', 'waesche'), T('Kleidung aufhängen', 'buegel'), T('Spray nehmen', 'spray')] }
+          { id: uid('b'), name: 'Hochgehen & Bad', start: '19:30', end: '20:00', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Schlafanzug anziehen', 'mond'), T('Unterhose & Socken in die Wäsche', 'waesche'), T('Kleidung aufhängen', 'buegel'), T('Spray nehmen', 'spray')] }
         ] }
       ]
     };
@@ -122,15 +143,28 @@
 
   var config = load(CONFIG_KEY);
   if (!validConfig(config)) { config = defaultConfig(); store(CONFIG_KEY, config); }
+  /* Version 2: Zähne putzen bekommt einmalig die vier Timer-Schritte */
+  if ((config.version || 1) < 2) {
+    config.routines.forEach(function (r) {
+      var lists = r.blocks ? r.blocks.map(function (b) { return b.tasks; }) : [r.tasks || []];
+      lists.forEach(function (ts) {
+        ts.forEach(function (t) {
+          if (/z(ä|ae)hne\s*putzen/i.test(t.name || '') && !t.steps) { t.steps = brushSteps(); t.sound = true; }
+        });
+      });
+    });
+    config.version = 2;
+    store(CONFIG_KEY, config);
+  }
   function saveConfig() { store(CONFIG_KEY, config); }
 
   var day = null;
-  function freshDay(d) { return { date: dateKey(d), done: {}, later: {}, celebrated: {} }; }
+  function freshDay(d) { return { date: dateKey(d), done: {}, later: {}, celebrated: {}, brushed: {} }; }
   function ensureDay() {
     var d = now();
     if (!day) day = load(DAY_KEY);
     if (!day || day.date !== dateKey(d)) { day = freshDay(d); store(DAY_KEY, day); }
-    day.done = day.done || {}; day.later = day.later || {}; day.celebrated = day.celebrated || {};
+    day.done = day.done || {}; day.later = day.later || {}; day.celebrated = day.celebrated || {}; day.brushed = day.brushed || {};
   }
   function saveDay() { store(DAY_KEY, day); }
 
@@ -201,6 +235,18 @@
     if (t.optional) sub += '<span class="tag">optional</span>';
     if (tag) sub += '<span class="tag">' + esc(tag) + '</span>';
     if (t.hint && !done) sub += '<span class="hint">' + esc(t.hint) + '</span>';
+    if (hasSteps(t)) {
+      /* Aufgabe mit Timer: Play öffnet die Putz-Ansicht, Kreis hakt ab (auch ohne Timer) */
+      var ready = !done && day.brushed[t.id];
+      var info = ready ? '<span class="hint">Alles geputzt, jetzt abhaken</span>'
+        : '<span class="tag">' + fmtSec(totalSec(t)).replace(/:00$/, '') + ' Min · ' + t.steps.length + (t.steps.length === 1 ? ' Schritt' : ' Schritte') + '</span>';
+      return '<div class="' + cls + ' has-timer' + (ready ? ' ready' : '') + '" data-id="' + t.id + '">' +
+        '<button type="button" class="task-main" data-action="toggle" data-id="' + t.id + '" aria-pressed="' + (done ? 'true' : 'false') + '">' +
+        '<span class="tile">' + icon(t.icon, 30) + '</span>' +
+        '<span class="txt"><span class="label">' + esc(t.name) + '</span>' + sub + (done ? '' : info) + '</span></button>' +
+        (done ? '' : '<button type="button" class="play" data-action="timer-open" data-id="' + t.id + '" aria-label="Timer für ' + esc(t.name) + ' starten">' + icon('play', 24, ' style="stroke-width:1.8"') + '</button>') +
+        '<button type="button" class="chk-btn" data-action="toggle" data-id="' + t.id + '" aria-label="' + esc(t.name) + (done ? ' nicht mehr abhaken' : ' abhaken') + '"><span class="chk">' + (done ? icon('check', 22, ' style="stroke-width:2.4"') : '') + '</span></button></div>';
+    }
     return '<button type="button" class="' + cls + '" data-action="toggle" data-id="' + t.id + '" aria-pressed="' + (done ? 'true' : 'false') + '">' +
       '<span class="tile">' + icon(t.icon, 30) + '</span>' +
       '<span class="txt"><span class="label">' + esc(t.name) + '</span>' + sub + '</span>' +
@@ -403,6 +449,156 @@
     if (fire) setTimeout(function () { celebrate(r, d); }, 450);
   }
 
+  /* ---------- Timer-Ansicht (z. B. Zähne putzen) ---------- */
+  var actx = null;
+  function audioInit() {
+    /* "ambient" mischt sich unter andere Audioquellen, damit der Podcast weiterläuft (Safari 16.4+) */
+    try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch (e) { /* nicht unterstützt */ }
+    try {
+      if (!actx) { var AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); }
+      if (actx && actx.state === 'suspended') actx.resume();
+    } catch (e) { actx = null; }
+  }
+  function chime(kind) {
+    if (!actx) return;
+    try {
+      var t0 = actx.currentTime + 0.03;
+      var notes = kind === 'done' ? [659.25, 783.99, 1046.5] : [783.99, 1046.5];
+      notes.forEach(function (f, i) {
+        var o = actx.createOscillator(), g = actx.createGain(), st = t0 + i * 0.17;
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, st);
+        g.gain.exponentialRampToValueAtTime(0.35, st + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, st + 0.7);
+        o.connect(g); g.connect(actx.destination);
+        o.start(st); o.stop(st + 0.75);
+      });
+    } catch (e) { /* Ton nicht möglich */ }
+  }
+
+  function mouthPos(name) {
+    var n = (name || '').toLowerCase();
+    var row = /oben/.test(n) ? 0 : (/unten/.test(n) ? 1 : -1);
+    var col = /links/.test(n) ? 0 : (/rechts/.test(n) ? 1 : -1);
+    return row < 0 || col < 0 ? -1 : row * 2 + col;
+  }
+  function isMouth(t) {
+    if (t.steps.length !== 4) return false;
+    var seen = {};
+    return t.steps.every(function (s) { var p = mouthPos(s.name); if (p < 0 || seen[p]) return false; seen[p] = 1; return true; });
+  }
+  function teeth(upper) {
+    var h = '';
+    for (var i = 0; i < 4; i++) h += '<span class="tooth' + (i === 1 || i === 2 ? ' long' : '') + '"></span>';
+    return '<span class="teeth ' + (upper ? 'up' : 'down') + '">' + h + '</span>';
+  }
+  function stepState(i) {
+    var b = ui.brush;
+    if (b.phase === 'done' || i < b.idx) return 'done';
+    if (i === b.idx && b.phase !== 'start') return 'active';
+    return 'next';
+  }
+  function stepTile(s, i, mouth) {
+    var st = stepState(i);
+    var badge = st === 'done' ? '<span class="sdone">' + icon('check', 20, ' style="stroke-width:2.4"') + '</span>'
+      : (st === 'active' ? '<span class="snow">jetzt</span>' : '<span class="sgap"></span>');
+    var lab = '<span class="slab"><b>' + esc(s.name) + '</b>' + badge + '</span>';
+    var up = mouth && mouthPos(s.name) < 2;
+    var inner = mouth ? (up ? teeth(true) + lab : lab + teeth(false)) : lab;
+    return '<div class="step ' + st + (mouth ? (up ? ' up' : ' down') : '') + '">' + inner + '</div>';
+  }
+  function dots(n) {
+    var h = '';
+    for (var i = 0; i < n; i++) {
+      var st = stepState(i);
+      h += '<span class="' + (st === 'done' ? 'on' : (st === 'active' ? 'cur' : '')) + '"></span>';
+    }
+    return '<span class="sdots" aria-hidden="true">' + h + '</span>';
+  }
+  function brushLeft() {
+    var b = ui.brush;
+    return b.phase === 'pause' ? b.left : Math.max(0, b.stepEnd - Date.now());
+  }
+
+  function renderBrush() {
+    ensureDay();
+    var b = ui.brush, f = findTask(b.id);
+    if (!f) { ui.view = 'main'; return renderMain(); }
+    var t = f.t, n = t.steps.length, mouth = isMouth(t);
+    var tiles;
+    if (mouth) {
+      var byPos = [];
+      t.steps.forEach(function (s, i) { byPos[mouthPos(s.name)] = stepTile(s, i, true); });
+      tiles = '<div class="mouth">' + byPos.join('') + '</div>';
+    } else {
+      tiles = '<div class="steps-list">' + t.steps.map(function (s, i) { return stepTile(s, i, false); }).join('') + '</div>';
+    }
+    var noun = mouth ? 'Bereiche' : 'Schritte';
+    var right;
+    if (b.phase === 'start') {
+      var same = t.steps.every(function (s) { return s.sec === t.steps[0].sec; });
+      var title = same ? n + ' ' + noun + ',<br>je ' + (t.steps[0].sec % 60 ? t.steps[0].sec + ' Sekunden' : (t.steps[0].sec / 60) + (t.steps[0].sec === 60 ? ' Minute' : ' Minuten'))
+        : n + ' ' + noun + ',<br>zusammen ' + fmtSec(totalSec(t)) + ' Min';
+      right = '<span class="kicker">Bereit?</span><h1>' + title + '</h1>' +
+        '<p>Die App sagt dir, wann du weiter darfst.<br>Du musst nichts mehr antippen.</p>' +
+        '<button type="button" class="bigbtn" data-action="timer-start">' + icon('play', 34, ' style="stroke-width:2"') + '<span>Start</span></button>';
+    } else if (b.phase === 'done') {
+      right = '<div class="kgroup"><span class="kicker strong">' + fmtSec(totalSec(t)).replace(/:00$/, '') + ' Minuten geschafft</span>' + dots(n) + '</div>' +
+        '<h1>' + (mouth ? 'Alle Seiten<br>sind sauber!' : 'Alles<br>geschafft!') + '</h1><p>Jetzt noch selbst abhaken.</p>' +
+        '<button type="button" class="bigbtn" data-action="timer-check">' + icon('check', 34, ' style="stroke-width:2.4"') + '<span>Abhaken</span></button>' +
+        '<button type="button" class="link-btn again" data-action="timer-start">' + icon('nochmal', 20) + '<span>Nochmal starten</span></button>';
+    } else {
+      var s = t.steps[b.idx], left = brushLeft(), pct = 100 - left / (s.sec * 1000) * 100;
+      var nxt = t.steps[b.idx + 1];
+      var paused = b.phase === 'pause';
+      right = '<div class="kgroup"><span class="kicker">' + (mouth ? 'Bereich ' : 'Schritt ') + (b.idx + 1) + ' von ' + n + (paused ? ' · Pause' : '') + '</span>' + dots(n) + '</div>' +
+        '<h1 class="stepname">' + esc(s.name) + '</h1>' +
+        '<span class="bigtime">' + fmtSec(left / 1000) + '</span>' +
+        '<span class="sbar"><span style="width:' + Math.max(0, Math.min(100, pct)).toFixed(1) + '%"></span></span>' +
+        '<div class="ctrl"><button type="button" class="roundbtn' + (paused ? ' go' : '') + '" data-action="' + (paused ? 'timer-resume' : 'timer-pause') + '" aria-label="' + (paused ? 'Weiter' : 'Pause') + '">' + icon(paused ? 'play' : 'pause', 30) + '</button>' +
+        '<span class="nexttxt">' + (nxt ? 'Danach: ' + esc(nxt.name) : 'Letzter ' + (mouth ? 'Bereich' : 'Schritt') + '!') + '</span></div>';
+    }
+    var snd = t.sound !== false;
+    app.className = 'app brush t-' + themeFor(currentId(now()));
+    app.innerHTML = '<header class="top"><span class="pill">' + icon(t.icon, 24) + '<span>' + esc(t.name) + '</span></span>' +
+      '<div class="top-right"><button type="button" class="sndbtn' + (snd ? ' on' : '') + '" data-action="timer-sound" aria-pressed="' + snd + '">' + icon(snd ? 'ton' : 'tonaus', 22) + '<span>' + (snd ? 'Ton an' : 'Ton aus') + '</span></button>' +
+      '<button type="button" class="icon-btn" data-action="timer-close" aria-label="Schließen">' + icon('zu', 22) + '</button></div></header>' +
+      '<div class="stage">' + tiles + '<div class="sright">' + right + '</div></div>';
+    ui.sig = brushSig();
+    updateWakeLock(true);
+  }
+  function brushSig() {
+    var b = ui.brush;
+    return 'brush|' + b.phase + '|' + b.idx + '|' + Math.ceil(brushLeft() / 1000);
+  }
+  function openTimer(id) {
+    ui.brush = { id: id, idx: 0, phase: 'start', stepEnd: 0, left: 0 };
+    ui.view = 'brush';
+    closeCele(); render();
+  }
+  function startTimer() {
+    var f = findTask(ui.brush.id); if (!f) return;
+    if (f.t.sound !== false) audioInit();
+    ui.brush.idx = 0; ui.brush.phase = 'run';
+    ui.brush.stepEnd = Date.now() + f.t.steps[0].sec * 1000;
+    render();
+  }
+  function tickTimer() {
+    var b = ui.brush; if (!b || b.phase !== 'run') return;
+    var f = findTask(b.id); if (!f) return;
+    var steps = f.t.steps, changed = false;
+    while (b.phase === 'run' && Date.now() >= b.stepEnd) {
+      b.idx++; changed = true;
+      if (b.idx >= steps.length) {
+        b.phase = 'done'; b.idx = steps.length;
+        ensureDay(); day.brushed[b.id] = true; saveDay();
+      } else {
+        b.stepEnd += steps[b.idx].sec * 1000;
+      }
+    }
+    if (changed && f.t.sound !== false) chime(b.phase === 'done' ? 'done' : 'step');
+  }
+
   /* ---------- PIN ---------- */
   function renderPin() {
     app.className = 'app t-morgen';
@@ -489,7 +685,24 @@
       '<button type="button" class="mini" data-action="task-up" data-id="' + t.id + '" aria-label="Nach oben"' + (i === 0 ? ' disabled' : '') + '>' + icon('hoch', 20) + '</button>' +
       '<button type="button" class="mini" data-action="task-down" data-id="' + t.id + '" aria-label="Nach unten"' + (i === n - 1 ? ' disabled' : '') + '>' + icon('runter', 20) + '</button>' +
       '<button type="button" class="mini del" data-action="task-del" data-id="' + t.id + '" aria-label="Aufgabe löschen">' + icon('muell', 20) + '</button></div>' +
-      picker + '</div>';
+      timerEd(t) + picker + '</div>';
+  }
+  function timerEd(t) {
+    var on = hasSteps(t), snd = t.sound !== false;
+    var h = '<div class="t-line sub timer-line">' +
+      '<button type="button" class="sw' + (on ? ' on' : '') + '" data-action="steps-toggle" data-id="' + t.id + '" aria-pressed="' + on + '"><span class="tr"><i></i></span><span>Mit Timer-Schritten</span></button>';
+    if (on) h += '<button type="button" class="sw' + (snd ? ' on' : '') + '" data-action="sound-toggle" data-id="' + t.id + '" aria-pressed="' + snd + '"><span class="tr"><i></i></span><span>Ton beim Wechsel</span></button>' +
+      '<span class="cnt">Gesamt ' + fmtSec(totalSec(t)) + ' Min</span>';
+    h += '</div>';
+    if (!on) return h;
+    h += '<div class="steps-ed">' + t.steps.map(function (s, k) {
+      return '<div class="step-ed"><span class="num">' + (k + 1) + '</span>' +
+        '<input class="inp name" data-field="step-name" data-id="' + t.id + '" data-s="' + s.id + '" value="' + esc(s.name) + '" aria-label="Name von Schritt ' + (k + 1) + '">' +
+        '<input class="inp dur" data-field="step-sec" data-id="' + t.id + '" data-s="' + s.id + '" value="' + fmtSec(s.sec) + '" inputmode="numeric" aria-label="Dauer von Schritt ' + (k + 1) + ' (Minuten:Sekunden)">' +
+        '<button type="button" class="mini del" data-action="step-del" data-id="' + t.id + '" data-s="' + s.id + '" aria-label="Schritt löschen"' + (t.steps.length === 1 ? ' disabled' : '') + '>' + icon('muell', 20) + '</button></div>';
+    }).join('') +
+      '<button type="button" class="add-btn small" data-action="step-add" data-id="' + t.id + '">' + icon('plus', 18) + '<span>Schritt hinzufügen</span></button></div>';
+    return h;
   }
   function taskListEd(tasks, ownerAttr) {
     var rows = tasks.map(function (t, i) { return taskRowEd(t, i, tasks.length); }).join('');
@@ -588,6 +801,45 @@
         renderMain(); break;
       }
       case 'toggle': toggleTask(id); break;
+      case 'timer-open': openTimer(id); break;
+      case 'timer-start': startTimer(); break;
+      case 'timer-pause': ui.brush.left = brushLeft(); ui.brush.phase = 'pause'; render(); break;
+      case 'timer-resume': ui.brush.stepEnd = Date.now() + ui.brush.left; ui.brush.phase = 'run'; render(); break;
+      case 'timer-close': ui.view = 'main'; ui.brush = null; render(); break;
+      case 'timer-sound': {
+        f = findTask(ui.brush.id);
+        if (f) { f.t.sound = f.t.sound === false; saveConfig(); if (f.t.sound) { audioInit(); chime('step'); } }
+        render(); break;
+      }
+      case 'timer-check': {
+        var tid = ui.brush.id;
+        ui.view = 'main'; ui.brush = null;
+        ensureDay();
+        if (!day.done[tid]) toggleTask(tid); else render();
+        break;
+      }
+      case 'steps-toggle': {
+        f = findTask(id); if (!f) break;
+        if (hasSteps(f.t)) { f.t.savedSteps = f.t.steps; f.t.steps = []; }
+        else {
+          f.t.steps = (f.t.savedSteps && f.t.savedSteps.length) ? f.t.savedSteps
+            : (/z(ä|ae)hne/i.test(f.t.name) ? brushSteps() : [{ id: uid('s'), name: 'Schritt 1', sec: 30 }]);
+          if (f.t.sound === undefined) f.t.sound = true;
+        }
+        saveConfig(); render(); break;
+      }
+      case 'step-add': {
+        f = findTask(id); if (!f) break;
+        f.t.steps.push({ id: uid('s'), name: 'Schritt ' + (f.t.steps.length + 1), sec: 30 });
+        saveConfig(); render(); break;
+      }
+      case 'step-del': {
+        f = findTask(id); if (!f) break;
+        var sid = el.getAttribute('data-s');
+        f.t.steps = f.t.steps.filter(function (x) { return x.id !== sid; });
+        saveConfig(); render(); break;
+      }
+      case 'sound-toggle': f = findTask(id); if (f) { f.t.sound = f.t.sound === false; saveConfig(); render(); } break;
       case 'edit': openPin(config.pin ? 'enter' : 'set1', 'main'); break;
       case 'digit': pinDigit(el.getAttribute('data-d')); break;
       case 'pin-del': ui.pinBuf = ui.pinBuf.slice(0, -1); ui.pinErr = ''; render(); break;
@@ -648,12 +900,25 @@
     if (field === 'task-name') { f = findTask(id); if (f) { f.t.name = el.value; saveConfig(); } }
     else if (field === 'task-hint') { f = findTask(id); if (f) { f.t.hint = el.value; saveConfig(); } }
     else if (field === 'block-name') { f = findBlock(id); if (f) { f.b.name = el.value; saveConfig(); } }
+    else if (field === 'step-name') {
+      f = findTask(id);
+      if (f) { f.t.steps.forEach(function (x) { if (x.id === el.getAttribute('data-s')) x.name = el.value; }); saveConfig(); }
+    }
   });
   app.addEventListener('change', function (ev) {
     var el = ev.target, field = el.getAttribute('data-field'), id = el.getAttribute('data-id'), f;
     if ((field === 'block-start' || field === 'block-end') && el.value) {
       f = findBlock(id);
       if (f) { f.b[field === 'block-start' ? 'start' : 'end'] = el.value; saveConfig(); render(); }
+    } else if (field === 'step-sec') {
+      f = findTask(id);
+      var v = parseSec(el.value);
+      if (f && v !== null) {
+        v = Math.max(5, Math.min(600, v));
+        f.t.steps.forEach(function (x) { if (x.id === el.getAttribute('data-s')) x.sec = v; });
+        saveConfig();
+      }
+      render();
     } else if (field === 'import' && el.files && el.files[0]) {
       importConfig(el.files[0]); el.value = '';
     }
@@ -662,6 +927,7 @@
   function render() {
     if (ui.view === 'edit') return renderEdit();
     if (ui.view === 'pin') return renderPin();
+    if (ui.view === 'brush') return renderBrush();
     return renderMain();
   }
 
@@ -683,10 +949,15 @@
 
   /* Takt: jede Sekunde prüfen, nur bei Änderungen neu zeichnen */
   setInterval(function () {
+    if (ui.view === 'brush') {
+      tickTimer();
+      if (brushSig() !== ui.sig) renderBrush();
+      return;
+    }
     if (ui.view !== 'main') return;
     var d = now();
     if (!day || day.date !== dateKey(d) || mainSig(d) !== ui.sig) renderMain();
-  }, 1000);
+  }, 250);
 
   render();
 
