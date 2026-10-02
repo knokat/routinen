@@ -1,5 +1,5 @@
 /* Offline-Cache: Dateien der App werden gespeichert, Aktualisierungen kommen beim nächsten Start. */
-var CACHE = 'leander-routine-v3';
+var CACHE = 'leander-routine-v4';
 var FILES = ['./', './index.html', './app.js', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 
 self.addEventListener('install', function (e) {

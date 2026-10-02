@@ -115,13 +115,13 @@
   }
   function defaultConfig() {
     return {
-      version: 2,
+      version: 3,
       pin: '',
       routines: [
         { id: 'morgen', name: 'Morgen', icon: 'sonne', type: 'timeline', label: 'Dein Morgen', goal: 'Los', goalIcon: 'haus', goalText: 'bis Haus verlassen um', blocks: [
           { id: uid('b'), name: 'Aufstehen', start: '06:15', end: '06:30', tasks: [T('Nach unten gehen', 'treppe', { hint: 'um 6:30 am Tisch sitzen' })] },
           { id: uid('b'), name: 'Frühstück', start: '06:30', end: '06:50', tasks: [T('Essen', 'essen'), T('1 Glas Wasser trinken', 'wasser'), T('Concerta nehmen', 'pille'), T('Geschirr in die Küche', 'geschirr')] },
-          { id: uid('b'), name: 'Bad & Umziehen', start: '06:50', end: '07:10', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Anziehen', 'shirt'), T('Haare zusammenbinden', 'zopf', { days: [1, 3] })] },
+          { id: uid('b'), name: 'Bad & Umziehen', start: '06:50', end: '07:10', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Anziehen', 'shirt'), T('Schlafanzug ins Zimmer', 'mond'), T('Haare zusammenbinden', 'zopf', { days: [1, 3] })] },
           { id: uid('b'), name: 'Schuhe & Jacke', start: '07:10', end: '07:20', tasks: [T('Schuhe anziehen', 'schuh'), T('Jacke anziehen', 'jacke'), T('Jause einpacken', 'apfel'), T('Schulranzen anschnallen', 'rucksack'), T('Handschuhe & Mütze', 'muetze', { optional: true })] }
         ] },
         { id: 'mittag', name: 'Nach der Schule', icon: 'haus', type: 'checklist', tasks: [
@@ -154,6 +154,22 @@
       });
     });
     config.version = 2;
+    store(CONFIG_KEY, config);
+  }
+  /* Version 3: morgens im Bad kommt einmalig „Schlafanzug ins Zimmer“ dazu (nach „Anziehen“) */
+  if (config.version < 3) {
+    var mr = config.routines[0], bad = null;
+    (mr.blocks || []).forEach(function (b) { if (!bad && /bad/i.test(b.name || '')) bad = b; });
+    var exists = config.routines.some(function (r) {
+      return (r.blocks || []).some(function (b) { return b.tasks.some(function (t) { return /schlafanzug\s+ins\s+zimmer/i.test(t.name || ''); }); });
+    });
+    if (bad && !exists) {
+      var at = -1;
+      bad.tasks.forEach(function (t, i) { if (/^anziehen$/i.test((t.name || '').trim())) at = i; });
+      var nt = T('Schlafanzug ins Zimmer', 'mond');
+      if (at >= 0) bad.tasks.splice(at + 1, 0, nt); else bad.tasks.push(nt);
+    }
+    config.version = 3;
     store(CONFIG_KEY, config);
   }
   function saveConfig() { store(CONFIG_KEY, config); }
