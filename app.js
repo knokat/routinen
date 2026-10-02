@@ -282,11 +282,21 @@
     if (remSec <= 0) {
       cd = '<div class="card count"><span class="lead">Es ist</span><span class="big">' + fmt(end) + '</span><span class="sub">' + esc(r.id === 'morgen' ? 'Zeit zum Losgehen!' : 'Zeit fürs Bett!') + '</span><div class="bar"><span style="width:100%"></span></div></div>';
     } else {
-      var n = remMin >= 60 ? Math.floor(remMin / 60) + ':' + ('0' + (remMin % 60)).slice(-2) : String(remMin);
-      var u = remMin >= 60 ? 'Std.' : (remMin === 1 ? 'Minute' : 'Minuten');
-      var pct = Math.max(0, Math.min(100, (m - start) / (end - start) * 100));
+      /* Großer Countdown: bis zum nächsten Block. Im letzten Block: bis zum Ziel (Haus verlassen / Bett). */
+      var target, label, from;
+      var nb = m < start ? bs[0] : bs[curIdx + 1];
+      if (m < start) { target = start; label = 'bis ' + bs[0].b.name; from = start - 30; }
+      else if (cur && nb) { target = nb.start; label = 'bis ' + nb.b.name; from = cur.start; }
+      else { target = end; label = r.goalText + ' ' + fmt(end); from = cur ? cur.start : start; }
+      var leftSec = target * 60 - sec, leftMin = Math.max(1, Math.ceil(leftSec / 60));
+      var n = leftMin >= 60 ? Math.floor(leftMin / 60) + ':' + ('0' + (leftMin % 60)).slice(-2) : String(leftMin);
+      var u = leftMin >= 60 ? 'Std.' : (leftMin === 1 ? 'Minute' : 'Minuten');
+      var pct = Math.max(0, Math.min(100, (m - from) / Math.max(1, target - from) * 100));
+      var goalLine = target === end ? '' :
+        '<span class="goalline">' + icon(r.goalIcon || 'stern', 18) + '<span>' + esc(r.id === 'morgen' ? 'Losgehen' : 'Ins Bett') + ' um ' + fmt(end) + '</span>' +
+        '<span class="gl-rest">noch ' + remMin + ' Min</span></span>';
       cd = '<div class="card count' + (warn ? ' warn' : '') + '"><span class="lead">Noch</span><div class="num"><span class="n">' + n + '</span><span class="u">' + u + '</span></div>' +
-        '<span class="sub">' + esc(r.goalText) + ' ' + fmt(end) + '</span><div class="bar"><span style="width:' + pct.toFixed(1) + '%"></span></div></div>';
+        '<span class="sub">' + esc(label) + '</span><div class="bar"><span style="width:' + pct.toFixed(1) + '%"></span></div>' + goalLine + '</div>';
     }
 
     /* Zeitstrahl */

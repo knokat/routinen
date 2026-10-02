@@ -63,6 +63,11 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: rou
 .bar { margin-top: 18px; height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; }
 .bar > span { display: block; height: 100%; border-radius: 5px; background: var(--mid); }
 .count.warn .bar > span { background: var(--warn-mid); }
+.goalline { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 15px; font-weight: 800; color: var(--ink); }
+.goalline svg { color: var(--strong); }
+.goalline span { white-space: nowrap; }
+.goalline .gl-rest { margin-left: auto; color: var(--quiet); }
+.count.warn .goalline { border-color: #F0DFA8; }
 
 .tl { flex-grow: 1; min-width: 0; padding: 22px 26px 18px; display: flex; flex-direction: column; gap: 30px; }
 .tl-label { font-size: 15px; font-weight: 800; letter-spacing: 0.06em; color: var(--quiet); text-transform: uppercase; }
