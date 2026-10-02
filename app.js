@@ -175,12 +175,12 @@
   function saveConfig() { store(CONFIG_KEY, config); }
 
   var day = null;
-  function freshDay(d) { return { date: dateKey(d), done: {}, later: {}, celebrated: {}, brushed: {} }; }
+  function freshDay(d) { return { date: dateKey(d), done: {}, later: {}, celebrated: {}, brushed: {}, early: {} }; }
   function ensureDay() {
     var d = now();
     if (!day) day = load(DAY_KEY);
     if (!day || day.date !== dateKey(d)) { day = freshDay(d); store(DAY_KEY, day); }
-    day.done = day.done || {}; day.later = day.later || {}; day.celebrated = day.celebrated || {}; day.brushed = day.brushed || {};
+    day.done = day.done || {}; day.later = day.later || {}; day.celebrated = day.celebrated || {}; day.brushed = day.brushed || {}; day.early = day.early || {};
   }
   function saveDay() { store(DAY_KEY, day); }
 
@@ -196,6 +196,11 @@
     var bs = (r.blocks || []).map(function (b) { return { b: b, start: toMin(b.start), end: toMin(b.end) }; });
     bs.sort(function (a, c) { return a.start - c.start; });
     if (shift) bs.forEach(function (x, i) { if (i > 0) x.start += shift; x.end += shift; });
+    /* Früher gestartete Blöcke (nur für heute): Block beginnt zur Startzeit, der vorige endet dort. Ziel bleibt gleich. */
+    if (day && day.early) bs.forEach(function (x, i) {
+      var e = day.early[x.b.id];
+      if (i > 0 && typeof e === 'number' && e < x.start && e >= bs[i - 1].start) { x.start = e; bs[i - 1].end = Math.min(bs[i - 1].end, e); }
+    });
     return bs;
   }
   function span(r) {
@@ -345,7 +350,9 @@
         : '<span class="badge">' + doneN + ' von ' + reqN + ' erledigt</span>';
       head = '<div class="sec-head"><h2>' + (m < start ? 'Gleich geht es los: ' : 'Jetzt dran: ') + esc(cur.b.name) + '</h2>' + (reqN ? badge : '') + '</div>';
       var nxt = bs[curIdx + 1];
-      if (reqN && !cur.open && nxt) extra = '<div class="banner">Super, ' + esc(cur.b.name) + ' ist fertig! Um ' + fmt(nxt.start) + ' geht es weiter mit ' + esc(nxt.b.name) + '.</div>';
+      if (reqN && !cur.open && nxt && m >= cur.start) extra = '<div class="banner with-btn"><span>Super, ' + esc(cur.b.name) + ' ist fertig! Du kannst schon weitermachen oder um ' + fmt(nxt.start) + ' mit ' + esc(nxt.b.name) + ' anfangen.</span>' +
+        '<button type="button" class="startnext" data-action="block-early" data-id="' + nxt.b.id + '">' + icon('play', 22, ' style="stroke-width:1.8"') + '<span>' + esc(nxt.b.name) + ' jetzt starten</span></button></div>';
+      else if (reqN && !cur.open && nxt) extra = '<div class="banner">Super, ' + esc(cur.b.name) + ' ist fertig! Um ' + fmt(nxt.start) + ' geht es weiter mit ' + esc(nxt.b.name) + '.</div>';
       else if (reqN && !cur.open) extra = '<div class="banner">Super, alles erledigt!</div>';
       else if (nxt) extra = '<div class="next">' + icon('uhr', 20) + '<span>Danach: ' + esc(nxt.b.name) + ' ab ' + fmt(nxt.start) + '</span></div>';
     } else {
@@ -828,6 +835,12 @@
       }
       case 'toggle': toggleTask(id); break;
       case 'timer-open': openTimer(id); break;
+      case 'block-early': {
+        ensureDay();
+        var dn = now();
+        day.early[id] = dn.getHours() * 60 + dn.getMinutes();
+        saveDay(); renderMain(); break;
+      }
       case 'timer-start': startTimer(); break;
       case 'timer-pause': ui.brush.left = brushLeft(); ui.brush.phase = 'pause'; render(); break;
       case 'timer-resume': ui.brush.stepEnd = Date.now() + ui.brush.left; ui.brush.phase = 'run'; render(); break;
