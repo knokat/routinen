@@ -210,8 +210,14 @@
   }
   function autoRoutine(d) {
     var wd = d.getDay();
-    if (!isSchoolDay(wd)) return 'frei';
     var m = d.getHours() * 60 + d.getMinutes();
+    if (!isSchoolDay(wd)) {
+      /* Sonntag: Abendroutine, weil am Montag Schule ist. Samstag und Sonntag tagsüber bleiben frei. */
+      if (wd !== 0) return 'frei';
+      var sa = span(routine('abend'));
+      if (!sa || m < sa.start) return 'frei';
+      return m < sa.end + 45 ? 'abend' : 'nacht';
+    }
     var ms = span(routine('morgen')), as = span(routine('abend'));
     if (!ms || !as) return 'mittag';
     if (m < ms.start - 45) return 'nacht';
