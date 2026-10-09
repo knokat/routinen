@@ -257,6 +257,13 @@
 
   function taskCard(t, state, tag) {
     var done = !!day.done[t.id];
+    if (state === 'locked') {
+      /* Vorschau eines späteren Blocks: sichtbar, aber noch nicht abhakbar */
+      return '<button type="button" class="task locked' + (t.optional ? ' optional' : '') + '" data-action="locked-task" data-id="' + t.id + '" aria-disabled="true">' +
+        '<span class="tile">' + icon(t.icon, 30) + '</span>' +
+        '<span class="txt"><span class="label">' + esc(t.name) + '</span>' + (t.optional ? '<span class="tag">optional</span>' : '') + (hasSteps(t) ? '<span class="tag">mit Timer</span>' : '') + '</span>' +
+        '<span class="chk lock">' + icon('schloss', 20) + '</span></button>';
+    }
     var cls = 'task' + (done ? ' done' : '') + (state === 'late' && !done ? ' late' : '') + (t.optional ? ' optional' : '');
     var sub = '';
     if (t.optional) sub += '<span class="tag">optional</span>';
@@ -304,6 +311,13 @@
     var remMin = Math.ceil(remSec / 60);
     var warn = cur && cur.st === 'warn';
 
+    /* Vorschau: ein späterer Block wurde im Zeitstrahl angetippt */
+    var pv = null, pvIdx = -1;
+    if (ui.preview && ui.preview.rid === r.id) {
+      bs.forEach(function (x, i) { if (x.b.id === ui.preview.bid) { pv = x; pvIdx = i; } });
+      if (!pv || pvIdx <= curIdx || pv.start <= m || remSec <= 0) { pv = null; pvIdx = -1; ui.preview = null; }
+    }
+
     /* Countdown */
     var cd;
     if (remSec <= 0) {
@@ -335,12 +349,26 @@
         var lp = m < x.start ? 0 : Math.max(0, Math.min(100, (m - x.start) / (x.end - x.start) * 100));
         marker = '<span class="now" style="left:' + lp.toFixed(1) + '%"><b>jetzt</b><i></i></span>';
       }
-      return '<div class="blk ' + x.st + '" style="flex-grow:' + Math.max(1, x.end - x.start) + '">' + marker +
-        '<div class="blk-box"><span class="nm">' + nm + '</span>' + note + '</div><span class="blk-time">' + fmt(x.start) + '</span></div>';
+      var view = i === pvIdx;
+      return '<div class="blk ' + x.st + (view ? ' viewing' : '') + '" style="flex-grow:' + Math.max(1, x.end - x.start) + '">' + marker +
+        '<button type="button" class="blk-box" data-action="preview" data-id="' + x.b.id + '" aria-pressed="' + view + '" aria-label="' + esc(x.b.name) + (i > curIdx ? ' ansehen' : '') + '"><span class="nm">' + nm + '</span>' + note + '</button><span class="blk-time">' + fmt(x.start) + '</span></div>';
     }).join('');
     var goalMarker = remSec <= 0 ? '<span class="now" style="left:50%"><b>jetzt</b><i></i></span>' : '';
     var tl = '<div class="card tl"><span class="tl-label">' + esc(r.label || r.name) + '</span><div class="tl-row"><div class="tl-blocks">' + blocks + '</div>' +
       '<div class="goal">' + goalMarker + '<div class="goal-box">' + icon(r.goalIcon || 'stern', 22) + '<span>' + esc(r.goal || 'Ziel') + '</span></div><span class="goal-time">' + fmt(end) + '</span></div></div></div>';
+
+    if (pv) {
+      var pcards = pv.tasks.map(function (t) { return taskCard(t, 'locked'); });
+      var canStart = pvIdx === curIdx + 1 && cur && cur.req && !cur.open && m >= cur.start;
+      var phead = '<div class="sec-head"><h2>Vorschau: ' + esc(pv.b.name) + '</h2><span class="badge">ab ' + fmt(pv.start) + '</span></div>';
+      var pextra = '<div class="banner with-btn preview-bar"><span>' + (canStart
+        ? esc(cur.b.name) + ' ist fertig. Du kannst ' + esc(pv.b.name) + ' schon jetzt starten.'
+        : 'Diese Aufgaben kannst du abhaken, wenn ' + esc(pv.b.name) + ' dran ist.') + '</span><span class="pv-btns">' +
+        (canStart ? '<button type="button" class="startnext" data-action="block-early" data-id="' + pv.b.id + '">' + icon('play', 22, ' style="stroke-width:1.8"') + '<span>Jetzt starten</span></button>' : '') +
+        '<button type="button" class="backnow" data-action="preview-exit">' + icon('zurueck', 20) + '<span>Zurück zu jetzt</span></button></span></div>';
+      var pg = pcards.length ? '<div class="grid' + (pcards.length <= 4 ? ' c2' : '') + '">' + pcards.join('') + '</div>' : '<p class="next">Dieser Block hat keine Aufgaben.</p>';
+      return '<section class="toprow">' + cd + tl + '</section><section class="tasks">' + phead + pg + pextra + '</section>';
+    }
 
     /* Aufgaben: aktueller Block + offene Aufgaben aus vorbei gelaufenen Blöcken */
     var cards = [];
@@ -419,6 +447,37 @@
     app.innerHTML = header(id, d) + body;
     ui.sig = mainSig(d);
     updateWakeLock(r && r.type === 'timeline' && id === autoRoutine(d));
+  }
+
+  /* Kurze Meldung unten am Bildschirm */
+  var toastEl = null, toastTimer = null;
+  function showToast(text) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.className = 'toast'; toastEl.setAttribute('role', 'status'); toastEl.setAttribute('aria-live', 'polite');
+      document.body.appendChild(toastEl);
+    }
+    toastEl.innerHTML = icon('schloss', 22) + '<span>' + esc(text) + '</span>';
+    toastEl.classList.remove('show'); void toastEl.offsetWidth; toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 3500);
+  }
+  function lockedMessage(taskId) {
+    var d = now(), r = routine(currentId(d));
+    if (!r || r.type !== 'timeline') return '';
+    var wd = d.getDay(), m = (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()) / 60;
+    var bs = effBlocks(r), idx = -1, curIdx = m < (bs[0] ? bs[0].start : 0) ? 0 : -1;
+    bs.forEach(function (x, i) {
+      if (x.b.tasks.some(function (t) { return t.id === taskId; })) idx = i;
+      if (curIdx < 0 && m >= x.start && m < x.end) curIdx = i;
+    });
+    if (idx < 0) return '';
+    for (var j = 0; j < idx; j++) {
+      if (openReq(todaysTasks(bs[j].b.tasks, wd)).length) return 'Erledige zuerst die Aufgaben von „' + bs[j].b.name + '“.';
+    }
+    var msg = '„' + bs[idx].b.name + '“ beginnt um ' + fmt(bs[idx].start) + '.';
+    if (idx === curIdx + 1 && curIdx >= 0 && m >= bs[curIdx].start) msg += ' Du kannst den Block aber schon jetzt starten.';
+    return msg;
   }
 
   /* Funken beim Abhaken */
@@ -835,13 +894,18 @@
     var f, r;
     switch (a) {
       case 'pick': {
+        ui.preview = null;
         var d = now(), auto = autoRoutine(d);
         ui.manual = id === auto ? null : { id: id, auto: auto };
         renderMain(); break;
       }
       case 'toggle': toggleTask(id); break;
       case 'timer-open': openTimer(id); break;
+      case 'preview': ui.preview = { rid: currentId(now()), bid: id }; renderMain(); break;
+      case 'preview-exit': ui.preview = null; renderMain(); break;
+      case 'locked-task': showToast(lockedMessage(id)); break;
       case 'block-early': {
+        ui.preview = null;
         ensureDay();
         var dn = now();
         day.early[id] = dn.getHours() * 60 + dn.getMinutes();

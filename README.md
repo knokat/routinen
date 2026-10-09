@@ -25,7 +25,7 @@ Keine Abhängigkeiten, kein Build-Schritt. Alle Daten bleiben lokal auf dem iPad
 
 ## Gut zu wissen
 
-- **Updates:** Nach dem Hochladen neuer Dateien in `sw.js` die Versionsnummer (`leander-routine-v6`) erhöhen. Die neue Version erscheint beim übernächsten Start der App.
+- **Updates:** Nach dem Hochladen neuer Dateien in `sw.js` die Versionsnummer (`leander-routine-v7`) erhöhen. Die neue Version erscheint beim übernächsten Start der App.
 - **Ton-Test:** `ton-test.html` auf dem iPad öffnen, während ein Podcast läuft, und die Knöpfe antippen. Läuft der Podcast weiter, passt alles. Sonst im Putz-Timer „Ton aus“ wählen.
 - **Timer-Schritte:** Jede Aufgabe kann im Bearbeiten-Bereich Schritte mit Dauer bekommen (z. B. Zähne putzen 4 × 30 Sekunden).
 - **Sicherung:** Bearbeiten › „Sichern“ speichert alle Routinen als Datei, „Laden“ stellt sie wieder her.

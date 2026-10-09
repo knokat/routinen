@@ -81,6 +81,19 @@ svg.i { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: rou
 .blk.active .blk-box { background: var(--tint); border: 2.5px solid var(--strong); }
 .blk.warn .blk-box { background: var(--warn-tint); border: 2.5px solid var(--warn-mid); }
 .blk.late .blk-box { background: var(--late-tint); border-color: var(--late-mid); color: var(--late-strong); }
+button.blk-box { width: 100%; font-family: inherit; cursor: pointer; }
+button.blk-box:active { transform: scale(0.97); }
+.blk.viewing .blk-box { outline: 3px dashed var(--strong); outline-offset: 3px; }
+.task.locked { cursor: pointer; box-shadow: none; background: var(--bg); border: 2px dashed #D6CABC; }
+.task.locked:active { transform: none; }
+.task.locked .tile { background: var(--fade); color: var(--quiet); }
+.task.locked .label { color: var(--quiet); }
+.task.locked .chk.lock { border: none; background: var(--fade); color: var(--quiet); }
+.preview-bar { background: var(--fade); color: var(--ink); }
+.pv-btns { display: flex; gap: 10px; flex-shrink: 0; }
+.backnow { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 20px; border-radius: 28px; border: 2px solid var(--line); background: var(--surf); font-size: 17px; font-weight: 800; color: var(--ink); }
+.toast { position: fixed; left: 50%; top: max(20px, env(safe-area-inset-top)); transform: translate(-50%, -20px); opacity: 0; pointer-events: none; z-index: 60; display: flex; align-items: center; gap: 12px; max-width: min(640px, calc(100vw - 32px)); padding: 16px 22px; border-radius: 20px; background: var(--ink); color: var(--surf); font-size: 19px; font-weight: 700; line-height: 1.3; box-shadow: 0 8px 30px rgba(59,51,44,0.25); transition: opacity 200ms, transform 200ms; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
 .blk-time { font-size: 14px; font-weight: 700; color: var(--quiet); font-variant-numeric: tabular-nums; }
 .now { position: absolute; top: -24px; display: flex; flex-direction: column; align-items: center; transform: translateX(-50%); pointer-events: none; z-index: 2; }
 .now b { font-size: 13px; font-weight: 800; }
