@@ -115,14 +115,14 @@
   }
   function defaultConfig() {
     return {
-      version: 3,
+      version: 4,
       pin: '',
       routines: [
         { id: 'morgen', name: 'Morgen', icon: 'sonne', type: 'timeline', label: 'Dein Morgen', goal: 'Los', goalIcon: 'haus', goalText: 'bis Haus verlassen um', blocks: [
           { id: uid('b'), name: 'Aufstehen', start: '06:15', end: '06:30', tasks: [T('Nach unten gehen', 'treppe', { hint: 'um 6:30 am Tisch sitzen' })] },
           { id: uid('b'), name: 'Frühstück', start: '06:30', end: '06:50', tasks: [T('Essen', 'essen'), T('1 Glas Wasser trinken', 'wasser'), T('Concerta nehmen', 'pille'), T('Geschirr in die Küche', 'geschirr')] },
-          { id: uid('b'), name: 'Bad & Umziehen', start: '06:50', end: '07:10', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Anziehen', 'shirt'), T('Schlafanzug ins Zimmer', 'mond'), T('Haare zusammenbinden', 'zopf', { days: [1, 3] })] },
-          { id: uid('b'), name: 'Schuhe & Jacke', start: '07:10', end: '07:20', tasks: [T('Schuhe anziehen', 'schuh'), T('Jacke anziehen', 'jacke'), T('Jause einpacken', 'apfel'), T('Schulranzen anschnallen', 'rucksack'), T('Handschuhe & Mütze', 'muetze', { optional: true })] }
+          { id: uid('b'), name: 'Bad & Umziehen', start: '06:50', end: '07:10', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Anziehen', 'shirt'), T('Schlafanzug ins Zimmer', 'mond')] },
+          { id: uid('b'), name: 'Schuhe & Jacke', start: '07:10', end: '07:20', tasks: [T('Haare zusammenbinden', 'zopf', { days: [1, 3] }), T('Schuhe anziehen', 'schuh'), T('Jacke anziehen', 'jacke'), T('Jause einpacken', 'apfel'), T('Schulranzen anschnallen', 'rucksack'), T('Handschuhe & Mütze', 'muetze', { optional: true })] }
         ] },
         { id: 'mittag', name: 'Nach der Schule', icon: 'haus', type: 'checklist', tasks: [
           T('Jacke aufhängen', 'buegel'), T('Jausebox in die Küche stellen', 'apfel'), T('Trinkflasche in die Küche stellen', 'flasche'), T('HÜ machen', 'heft')
@@ -170,6 +170,22 @@
       if (at >= 0) bad.tasks.splice(at + 1, 0, nt); else bad.tasks.push(nt);
     }
     config.version = 3;
+    store(CONFIG_KEY, config);
+  }
+  /* Version 4: „Haare zusammenbinden“ wandert morgens in den Block mit Schuhen und Jacke (an den Anfang) */
+  if (config.version < 4) {
+    var mb = config.routines[0].blocks || [];
+    var target = null;
+    mb.forEach(function (b) { if (!target && /schuh|jacke/i.test(b.name || '')) target = b; });
+    if (target) {
+      mb.forEach(function (b) {
+        if (b === target) return;
+        for (var i = b.tasks.length - 1; i >= 0; i--) {
+          if (/haare\s*zusammenbinden/i.test(b.tasks[i].name || '')) target.tasks.unshift(b.tasks.splice(i, 1)[0]);
+        }
+      });
+    }
+    config.version = 4;
     store(CONFIG_KEY, config);
   }
   function saveConfig() { store(CONFIG_KEY, config); }
