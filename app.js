@@ -5,7 +5,7 @@
   var CONFIG_KEY = 'leander-routine-config-v1';
   var DAY_KEY = 'leander-routine-day-v1';
   var WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-  var DAY_SHORT = [[1, 'Mo'], [2, 'Di'], [3, 'Mi'], [4, 'Do'], [5, 'Fr']];
+  var DAY_SHORT = [[1, 'Mo'], [2, 'Di'], [3, 'Mi'], [4, 'Do'], [5, 'Fr'], [6, 'Sa'], [0, 'So']];
 
   /* ---------- Icons (Linienstil, 24er Raster) ---------- */
   var ICONS = {
@@ -93,10 +93,11 @@
   function now() { return new Date(Date.now() + offset); }
 
   /* ---------- Startbelegung aus dem PRD ---------- */
-  var ALL = [1, 2, 3, 4, 5];
+  var ALL = [1, 2, 3, 4, 5, 6, 0];
+  var SCHOOL = [1, 2, 3, 4, 5];
   function T(name, ic, opts) {
     opts = opts || {};
-    var t = { id: uid('t'), name: name, icon: ic, days: opts.days || ALL.slice(), optional: !!opts.optional, hint: opts.hint || '' };
+    var t = { id: uid('t'), name: name, icon: ic, days: (opts.days || ALL).slice(), optional: !!opts.optional, hint: opts.hint || '' };
     if (opts.steps) { t.steps = opts.steps; t.sound = true; }
     return t;
   }
@@ -115,17 +116,17 @@
   }
   function defaultConfig() {
     return {
-      version: 4,
+      version: 5,
       pin: '',
       routines: [
         { id: 'morgen', name: 'Morgen', icon: 'sonne', type: 'timeline', label: 'Dein Morgen', goal: 'Los', goalIcon: 'haus', goalText: 'bis Haus verlassen um', blocks: [
           { id: uid('b'), name: 'Aufstehen', start: '06:15', end: '06:30', tasks: [T('Nach unten gehen', 'treppe', { hint: 'um 6:30 am Tisch sitzen' })] },
           { id: uid('b'), name: 'Frühstück', start: '06:30', end: '06:50', tasks: [T('Essen', 'essen'), T('1 Glas Wasser trinken', 'wasser'), T('Concerta nehmen', 'pille'), T('Geschirr in die Küche', 'geschirr')] },
           { id: uid('b'), name: 'Bad & Umziehen', start: '06:50', end: '07:10', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Anziehen', 'shirt'), T('Schlafanzug ins Zimmer', 'mond')] },
-          { id: uid('b'), name: 'Schuhe & Jacke', start: '07:10', end: '07:20', tasks: [T('Haare zusammenbinden', 'zopf', { days: [1, 3] }), T('Schuhe anziehen', 'schuh'), T('Jacke anziehen', 'jacke'), T('Jause einpacken', 'apfel'), T('Schulranzen anschnallen', 'rucksack'), T('Handschuhe & Mütze', 'muetze', { optional: true })] }
+          { id: uid('b'), name: 'Schuhe & Jacke', start: '07:10', end: '07:20', tasks: [T('Haare zusammenbinden', 'zopf', { days: [1, 3] }), T('Schuhe anziehen', 'schuh', { days: SCHOOL }), T('Jacke anziehen', 'jacke', { days: SCHOOL }), T('Jause einpacken', 'apfel', { days: SCHOOL }), T('Schulranzen anschnallen', 'rucksack', { days: SCHOOL }), T('Handschuhe & Mütze', 'muetze', { optional: true, days: SCHOOL })] }
         ] },
         { id: 'mittag', name: 'Nach der Schule', icon: 'haus', type: 'checklist', tasks: [
-          T('Jacke aufhängen', 'buegel'), T('Jausebox in die Küche stellen', 'apfel'), T('Trinkflasche in die Küche stellen', 'flasche'), T('HÜ machen', 'heft')
+          T('Jacke aufhängen', 'buegel', { days: SCHOOL }), T('Jausebox in die Küche stellen', 'apfel', { days: SCHOOL }), T('Trinkflasche in die Küche stellen', 'flasche', { days: SCHOOL }), T('HÜ machen', 'heft', { days: SCHOOL })
         ] },
         { id: 'abend', name: 'Abend', icon: 'mond', type: 'timeline', label: 'Dein Abend', goal: 'Bett', goalIcon: 'bett', goalText: 'bis ins Bett um', canShift: true, blocks: [
           { id: uid('b'), name: 'Abendessen', start: '18:30', end: '19:30', tasks: [T('Essen', 'essen'), T('1 Glas Wasser trinken', 'wasser'), T('Geschirr in die Küche', 'geschirr')] },
@@ -188,6 +189,24 @@
     config.version = 4;
     store(CONFIG_KEY, config);
   }
+  /* Version 5: Morgen und Abend gelten auch am Wochenende – außer Schulsachen und Aufgaben mit eigenen Tagen */
+  if (config.version < 5) {
+    ['morgen', 'abend'].forEach(function (rid) {
+      config.routines.forEach(function (r) {
+        if (r.id !== rid) return;
+        (r.blocks || []).forEach(function (b) {
+          b.tasks.forEach(function (t) {
+            var d = t.days || [1, 2, 3, 4, 5];
+            var weekdaysOnly = d.length === 5 && [1, 2, 3, 4, 5].every(function (x) { return d.indexOf(x) >= 0; });
+            var school = /jause|schulranzen|schuhe|jacke|handschuh|m(ü|ue)tze/i.test(t.name || '');
+            if (weekdaysOnly && !school) t.days = d.concat([6, 0]);
+          });
+        });
+      });
+    });
+    config.version = 5;
+    store(CONFIG_KEY, config);
+  }
   function saveConfig() { store(CONFIG_KEY, config); }
 
   var day = null;
@@ -204,7 +223,7 @@
   function routine(id) { for (var i = 0; i < config.routines.length; i++) if (config.routines[i].id === id) return config.routines[i]; return null; }
   function isSchoolDay(wd) { return wd >= 1 && wd <= 5; }
   function todaysTasks(list, wd) {
-    return (list || []).filter(function (t) { return !isSchoolDay(wd) || !t.days || t.days.indexOf(wd) >= 0; });
+    return (list || []).filter(function (t) { return !t.days || t.days.indexOf(wd) >= 0; });
   }
   /* Blöcke in Minuten, sortiert; abends ggf. mit "heute später" verschoben (erster Block wird länger, Rest rückt nach) */
   function effBlocks(r) {
@@ -224,12 +243,18 @@
     if (!bs.length) return null;
     return { start: bs[0].start, end: Math.max.apply(null, bs.map(function (x) { return x.end; })) };
   }
+  /* Wochenende ohne Uhrzeiten: Sa ganztags, So morgens. So abends läuft der normale Abend (Montag ist Schule). */
+  function relaxed(r, d) {
+    var wd = d.getDay();
+    return !!r && r.type === 'timeline' && (wd === 6 || (wd === 0 && r.id !== 'abend'));
+  }
   function autoRoutine(d) {
     var wd = d.getDay();
     var m = d.getHours() * 60 + d.getMinutes();
     if (!isSchoolDay(wd)) {
-      /* Sonntag: Abendroutine, weil am Montag Schule ist. Samstag und Sonntag tagsüber bleiben frei. */
-      if (wd !== 0) return 'frei';
+      if (m < 5 * 60) return 'nacht';
+      if (m < 12 * 60) return 'morgen';
+      if (wd === 6) return m < 17 * 60 ? 'frei' : (m < 22 * 60 ? 'abend' : 'nacht');
       var sa = span(routine('abend'));
       if (!sa || m < sa.start) return 'frei';
       return m < sa.end + 45 ? 'abend' : 'nacht';
@@ -284,7 +309,7 @@
     var sub = '';
     if (t.optional) sub += '<span class="tag">optional</span>';
     if (tag) sub += '<span class="tag">' + esc(tag) + '</span>';
-    if (t.hint && !done) sub += '<span class="hint">' + esc(t.hint) + '</span>';
+    if (t.hint && !done && !ui.relaxed) sub += '<span class="hint">' + esc(t.hint) + '</span>';
     if (hasSteps(t)) {
       /* Aufgabe mit Timer: Play öffnet die Putz-Ansicht, Kreis hakt ab (auch ohne Timer) */
       var ready = !done && day.brushed[t.id];
@@ -424,16 +449,35 @@
     return hero + '<div class="grid big fill' + cols + '">' + tasks.map(function (t) { return taskCard(t, 'normal'); }).join('') + '</div>';
   }
 
+  function viewRelaxed(r, d) {
+    var wd = d.getDay(), all = [], groups = '';
+    (r.blocks || []).slice().sort(function (a, b) { return toMin(a.start) - toMin(b.start); }).forEach(function (b) {
+      var ts = todaysTasks(b.tasks, wd);
+      if (!ts.length) return;
+      all = all.concat(ts);
+      var bo = openReq(ts).length, br = required(ts).length;
+      groups += '<section class="wk-group"><div class="sec-head"><h2>' + esc(b.name) + '</h2>' +
+        (br ? '<span class="badge">' + (br - bo) + ' von ' + br + '</span>' : '') + '</div>' +
+        '<div class="grid' + (ts.length <= 4 ? ' c2' : '') + '">' + ts.map(function (t) { return taskCard(t, 'normal'); }).join('') + '</div></section>';
+    });
+    var req = required(all).length, open = openReq(all).length, done = req - open;
+    var title = r.id === 'morgen' ? 'Guten Morgen!' : 'Schöner Abend!';
+    var msg = !req ? 'Heute steht nichts auf deiner Liste.' : (!open ? 'Alles erledigt, super!' : 'Wochenende: kein Zeitdruck, einfach abhaken.');
+    var pct = req ? done / req * 100 : 100;
+    return '<section class="card hero"><div><h1>' + title + '</h1><p>' + msg + '</p></div>' +
+      '<div class="prog"><b>' + done + ' von ' + req + '</b><div class="bar"><span style="width:' + pct.toFixed(0) + '%"></span></div></div></section>' + groups;
+  }
+
   function viewCalm(kind, d) {
     if (kind === 'frei') {
-      return '<div class="calm"><div class="orb">' + icon('sonne', 72) + '</div><h1>Heute ist frei</h1><p>Schönes Wochenende!</p></div>';
+      return '<div class="calm"><div class="orb">' + icon('sonne', 72) + '</div><h1>Freie Zeit</h1><p>Schönes Wochenende!</p></div>';
     }
     var tomorrow = new Date(d.getTime() + 86400000);
     var ms = span(routine('morgen'));
     var morning = d.getHours() < 12;
     var txt;
-    if (morning) txt = ms ? 'Der Morgen startet um ' + fmt(ms.start) + '.' : '';
-    else txt = isSchoolDay(tomorrow.getDay()) ? (ms ? 'Morgen früh geht es um ' + fmt(ms.start) + ' weiter.' : '') : 'Morgen ist frei.';
+    if (morning) txt = !isSchoolDay(d.getDay()) ? 'Schönes Wochenende!' : (ms ? 'Der Morgen startet um ' + fmt(ms.start) + '.' : '');
+    else txt = isSchoolDay(tomorrow.getDay()) ? (ms ? 'Morgen früh geht es um ' + fmt(ms.start) + ' weiter.' : '') : 'Morgen ist Wochenende.';
     return '<div class="calm"><div class="orb">' + icon('mond', 72) + '</div><h1>Schlaf gut!</h1><p>' + txt + '</p></div>';
   }
 
@@ -458,11 +502,12 @@
     var d = now();
     var id = currentId(d);
     var r = routine(id);
-    var body = r ? (r.type === 'timeline' ? viewTimeline(r, d) : viewChecklist(r, d)) : viewCalm(id, d);
+    ui.relaxed = relaxed(r, d);
+    var body = r ? (ui.relaxed ? viewRelaxed(r, d) : (r.type === 'timeline' ? viewTimeline(r, d) : viewChecklist(r, d))) : viewCalm(id, d);
     app.className = 'app t-' + themeFor(id);
     app.innerHTML = header(id, d) + body;
     ui.sig = mainSig(d);
-    updateWakeLock(r && r.type === 'timeline' && id === autoRoutine(d));
+    updateWakeLock(r && r.type === 'timeline' && !ui.relaxed && id === autoRoutine(d));
   }
 
   /* Kurze Meldung unten am Bildschirm */
@@ -535,7 +580,8 @@
   function celebrate(r, d) {
     var m = d.getHours() * 60 + d.getMinutes();
     var l2 = '';
-    if (r.type === 'timeline') {
+    if (relaxed(r, d)) l2 = 'Schönes Wochenende!';
+    else if (r.type === 'timeline') {
       var sp = span(r), left = sp ? sp.end - m : 0;
       if (left > 0) l2 = 'Noch ' + left + (left === 1 ? ' Minute ' : ' Minuten ') + r.goalText + ' ' + fmt(sp.end) + '.';
       else if (r.id === 'abend') l2 = 'Gute Nacht!';
