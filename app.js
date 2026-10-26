@@ -222,6 +222,15 @@
   /* ---------- Routinenlogik ---------- */
   function routine(id) { for (var i = 0; i < config.routines.length; i++) if (config.routines[i].id === id) return config.routines[i]; return null; }
   function isSchoolDay(wd) { return wd >= 1 && wd <= 5; }
+  /* Ferienmodus: an, optional bis einschließlich eines Datums. In den Ferien läuft jeder Tag wie ein Samstag. */
+  function isHoliday(d) {
+    var h = config.holiday;
+    return !!(h && h.on && (!h.until || dateKey(d) <= h.until));
+  }
+  function schoolDay(d) { return isSchoolDay(d.getDay()) && !isHoliday(d); }
+  function nextDay(d) { var t = new Date(d.getTime()); t.setDate(t.getDate() + 1); return t; }
+  function taskDay(d) { return schoolDay(d) || !isSchoolDay(d.getDay()) ? d.getDay() : 6; }
+  function freeText(d) { return isHoliday(d) ? 'Schöne Ferien!' : 'Schönes Wochenende!'; }
   function todaysTasks(list, wd) {
     return (list || []).filter(function (t) { return !t.days || t.days.indexOf(wd) >= 0; });
   }
@@ -243,18 +252,17 @@
     if (!bs.length) return null;
     return { start: bs[0].start, end: Math.max.apply(null, bs.map(function (x) { return x.end; })) };
   }
-  /* Wochenende ohne Uhrzeiten: Sa ganztags, So morgens. So abends läuft der normale Abend (Montag ist Schule). */
+  /* Freie Tage (Wochenende, Ferien) ohne Uhrzeiten. Ausnahme: der Abend vor einem Schultag läuft normal mit Bettzeit. */
   function relaxed(r, d) {
-    var wd = d.getDay();
-    return !!r && r.type === 'timeline' && (wd === 6 || (wd === 0 && r.id !== 'abend'));
+    return !!r && r.type === 'timeline' && !schoolDay(d) && !(r.id === 'abend' && schoolDay(nextDay(d)));
   }
   function autoRoutine(d) {
     var wd = d.getDay();
     var m = d.getHours() * 60 + d.getMinutes();
-    if (!isSchoolDay(wd)) {
+    if (!schoolDay(d)) {
       if (m < 5 * 60) return 'nacht';
       if (m < 12 * 60) return 'morgen';
-      if (wd === 6) return m < 17 * 60 ? 'frei' : (m < 22 * 60 ? 'abend' : 'nacht');
+      if (!schoolDay(nextDay(d))) return m < 17 * 60 ? 'frei' : (m < 22 * 60 ? 'abend' : 'nacht');
       var sa = span(routine('abend'));
       if (!sa || m < sa.start) return 'frei';
       return m < sa.end + 45 ? 'abend' : 'nacht';
@@ -291,7 +299,7 @@
     }).join('');
     var m = d.getHours() * 60 + d.getMinutes();
     return '<header class="top"><div class="top-left"><nav class="switch" aria-label="Routine wählen">' + tabs + '</nav>' +
-      '<span class="day">' + WEEKDAYS[d.getDay()] + '</span></div>' +
+      '<span class="day">' + WEEKDAYS[d.getDay()] + '</span>' + (isHoliday(d) ? '<span class="hol-chip">Ferien</span>' : '') + '</div>' +
       '<div class="top-right"><span class="clock">' + fmt(m) + '</span>' +
       '<button type="button" class="icon-btn" data-action="edit" aria-label="Bearbeiten">' + icon('stift', 22) + '</button></div></header>';
   }
@@ -329,7 +337,7 @@
   }
 
   function viewTimeline(r, d) {
-    var wd = d.getDay();
+    var wd = taskDay(d);
     var sec = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
     var m = sec / 60;
     var bs = effBlocks(r);
@@ -439,7 +447,7 @@
   }
 
   function viewChecklist(r, d) {
-    var tasks = todaysTasks(r.tasks, d.getDay());
+    var tasks = todaysTasks(r.tasks, taskDay(d));
     var req = required(tasks).length, open = openReq(tasks).length, done = req - open;
     var msg = !req ? 'Heute steht nichts auf deiner Liste.' : (!open ? 'Alles erledigt, super!' : (open === 1 ? 'Noch 1 Ding auf deiner Liste.' : 'Noch ' + open + ' Dinge auf deiner Liste.'));
     var pct = req ? done / req * 100 : 100;
@@ -450,7 +458,7 @@
   }
 
   function viewRelaxed(r, d) {
-    var wd = d.getDay(), all = [], groups = '';
+    var wd = taskDay(d), all = [], groups = '';
     (r.blocks || []).slice().sort(function (a, b) { return toMin(a.start) - toMin(b.start); }).forEach(function (b) {
       var ts = todaysTasks(b.tasks, wd);
       if (!ts.length) return;
@@ -462,7 +470,7 @@
     });
     var req = required(all).length, open = openReq(all).length, done = req - open;
     var title = r.id === 'morgen' ? 'Guten Morgen!' : 'Schöner Abend!';
-    var msg = !req ? 'Heute steht nichts auf deiner Liste.' : (!open ? 'Alles erledigt, super!' : 'Wochenende: kein Zeitdruck, einfach abhaken.');
+    var msg = !req ? 'Heute steht nichts auf deiner Liste.' : (!open ? 'Alles erledigt, super!' : (isHoliday(d) ? 'Ferien' : 'Wochenende') + ': kein Zeitdruck, einfach abhaken.');
     var pct = req ? done / req * 100 : 100;
     return '<section class="card hero"><div><h1>' + title + '</h1><p>' + msg + '</p></div>' +
       '<div class="prog"><b>' + done + ' von ' + req + '</b><div class="bar"><span style="width:' + pct.toFixed(0) + '%"></span></div></div></section>' + groups;
@@ -470,14 +478,14 @@
 
   function viewCalm(kind, d) {
     if (kind === 'frei') {
-      return '<div class="calm"><div class="orb">' + icon('sonne', 72) + '</div><h1>Freie Zeit</h1><p>Schönes Wochenende!</p></div>';
+      return '<div class="calm"><div class="orb">' + icon('sonne', 72) + '</div><h1>Freie Zeit</h1><p>' + freeText(d) + '</p></div>';
     }
     var tomorrow = new Date(d.getTime() + 86400000);
     var ms = span(routine('morgen'));
     var morning = d.getHours() < 12;
     var txt;
-    if (morning) txt = !isSchoolDay(d.getDay()) ? 'Schönes Wochenende!' : (ms ? 'Der Morgen startet um ' + fmt(ms.start) + '.' : '');
-    else txt = isSchoolDay(tomorrow.getDay()) ? (ms ? 'Morgen früh geht es um ' + fmt(ms.start) + ' weiter.' : '') : 'Morgen ist Wochenende.';
+    if (morning) txt = !schoolDay(d) ? freeText(d) : (ms ? 'Der Morgen startet um ' + fmt(ms.start) + '.' : '');
+    else txt = schoolDay(tomorrow) ? (ms ? 'Morgen früh geht es um ' + fmt(ms.start) + ' weiter.' : '') : 'Morgen ist frei.';
     return '<div class="calm"><div class="orb">' + icon('mond', 72) + '</div><h1>Schlaf gut!</h1><p>' + txt + '</p></div>';
   }
 
@@ -526,7 +534,7 @@
   function lockedMessage(taskId) {
     var d = now(), r = routine(currentId(d));
     if (!r || r.type !== 'timeline') return '';
-    var wd = d.getDay(), m = (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()) / 60;
+    var wd = taskDay(d), m = (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()) / 60;
     var bs = effBlocks(r), idx = -1, curIdx = m < (bs[0] ? bs[0].start : 0) ? 0 : -1;
     bs.forEach(function (x, i) {
       if (x.b.tasks.some(function (t) { return t.id === taskId; })) idx = i;
@@ -560,7 +568,7 @@
 
   /* Großes Feuerwerk, wenn eine Routine fertig ist */
   function routineComplete(r, d) {
-    var wd = d.getDay(), tasks = [];
+    var wd = taskDay(d), tasks = [];
     if (r.type === 'timeline') effBlocks(r).forEach(function (x) { tasks = tasks.concat(todaysTasks(x.b.tasks, wd)); });
     else tasks = todaysTasks(r.tasks, wd);
     return required(tasks).length > 0 && openReq(tasks).length === 0;
@@ -580,7 +588,7 @@
   function celebrate(r, d) {
     var m = d.getHours() * 60 + d.getMinutes();
     var l2 = '';
-    if (relaxed(r, d)) l2 = 'Schönes Wochenende!';
+    if (relaxed(r, d)) l2 = freeText(d);
     else if (r.type === 'timeline') {
       var sp = span(r), left = sp ? sp.end - m : 0;
       if (left > 0) l2 = 'Noch ' + left + (left === 1 ? ' Minute ' : ' Minuten ') + r.goalText + ' ' + fmt(sp.end) + '.';
@@ -885,6 +893,12 @@
       '<div class="row"><button type="button" class="chip-btn' + (l === 15 ? ' on' : '') + '" data-action="later" data-min="15">+15 Min</button>' +
       '<button type="button" class="chip-btn' + (l === 30 ? ' on' : '') + '" data-action="later" data-min="30">+30 Min</button>' +
       (l ? '<button type="button" class="chip-btn" data-action="later" data-min="0" aria-label="Zurücksetzen">' + icon('zurueck', 20) + '</button>' : '') + '</div></div>';
+    var hol = config.holiday || {}, holNow = isHoliday(now());
+    var holState = !hol.on ? 'Aus. Schultage laufen normal.' : (holNow ? (hol.until ? 'Aktiv bis einschließlich ' + hol.until.split('-').reverse().join('.') + '.' : 'Aktiv, bis du ihn ausschaltest.') : 'Abgelaufen. Schultage laufen wieder normal.');
+    side += '<div class="card later"><b>Ferienmodus</b><p>Jeder Tag läuft wie das Wochenende: ohne Uhrzeiten, ohne Schulsachen. ' + holState + '</p>' +
+      '<button type="button" class="sw' + (holNow ? ' on' : '') + '" data-action="holiday-toggle" aria-pressed="' + holNow + '"><span class="tr"><i></i></span><span>Ferienmodus</span></button>' +
+      (holNow ? '<label class="hol-until"><span>bis einschließlich (optional)</span><input class="inp" type="date" data-field="holiday-until" value="' + esc(hol.until || '') + '"></label>' : '') +
+      '</div>';
     side += '<div class="card" style="padding:8px 14px">' +
       '<button type="button" class="s-btn" data-action="pin-change"><span class="ic">' + icon('schloss', 20) + '</span><span>PIN ändern</span></button>' +
       '<button type="button" class="s-btn" data-action="export"><span class="ic">' + icon('sichern', 20) + '</span><span>Sichern (Datei speichern)</span></button>' +
@@ -1020,6 +1034,12 @@
       case 'sel-routine': ui.editId = id; ui.openBlock = null; ui.picker = null; render(); break;
       case 'later': day.later.abend = parseInt(el.getAttribute('data-min'), 10) || 0; saveDay(); render(); break;
       case 'export': exportConfig(); break;
+      case 'holiday-toggle': {
+        var h = config.holiday || { on: false, until: '' };
+        if (isHoliday(now())) h.on = false;
+        else { h.on = true; if (h.until && h.until < dateKey(now())) h.until = ''; }
+        config.holiday = h; saveConfig(); render(); break;
+      }
       case 'reset-all':
         if (window.confirm('Alle Routinen auf die Startwerte zurücksetzen? Eure Änderungen gehen verloren, die PIN bleibt.')) {
           var pin = config.pin; config = defaultConfig(); config.pin = pin; saveConfig(); ui.openBlock = null; render();
@@ -1090,6 +1110,10 @@
         saveConfig();
       }
       render();
+    } else if (field === 'holiday-until') {
+      config.holiday = config.holiday || { on: true, until: '' };
+      config.holiday.until = el.value || '';
+      saveConfig(); render();
     } else if (field === 'import' && el.files && el.files[0]) {
       importConfig(el.files[0]); el.value = '';
     }
