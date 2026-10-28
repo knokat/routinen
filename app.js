@@ -900,7 +900,6 @@
       (holNow ? '<label class="hol-until"><span>bis einschließlich (optional)</span><input class="inp" type="date" data-field="holiday-until" value="' + esc(hol.until || '') + '"></label>' : '') +
       '</div>';
     side += '<div class="card" style="padding:8px 14px">' +
-      '<button type="button" class="s-btn" data-action="pin-change"><span class="ic">' + icon('schloss', 20) + '</span><span>PIN ändern</span></button>' +
       '<button type="button" class="s-btn" data-action="export"><span class="ic">' + icon('sichern', 20) + '</span><span>Sichern (Datei speichern)</span></button>' +
       '<label class="s-btn" style="cursor:pointer"><span class="ic">' + icon('laden', 20) + '</span><span>Laden (Datei öffnen)</span><input type="file" accept="application/json,.json" data-field="import" class="vh"></label>' +
       '<button type="button" class="s-btn danger" data-action="reset-all"><span class="ic" style="color:inherit">' + icon('zurueck', 20) + '</span><span>Auf Startwerte zurücksetzen</span></button>' +
@@ -1025,7 +1024,7 @@
         saveConfig(); render(); break;
       }
       case 'sound-toggle': f = findTask(id); if (f) { f.t.sound = f.t.sound === false; saveConfig(); render(); } break;
-      case 'edit': openPin(config.pin ? 'enter' : 'set1', 'main'); break;
+      case 'edit': closeCele(); ui.view = 'edit'; ui.editId = 'morgen'; ui.openBlock = null; ui.picker = null; ui.preview = null; render(); break;
       case 'digit': pinDigit(el.getAttribute('data-d')); break;
       case 'pin-del': ui.pinBuf = ui.pinBuf.slice(0, -1); ui.pinErr = ''; render(); break;
       case 'pin-cancel': ui.view = ui.pinBack === 'edit' && config.pin ? 'edit' : 'main'; render(); break;
