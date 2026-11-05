@@ -116,7 +116,7 @@
   }
   function defaultConfig() {
     return {
-      version: 6,
+      version: 7,
       pin: '',
       routines: [
         { id: 'morgen', name: 'Morgen', icon: 'sonne', type: 'timeline', label: 'Dein Morgen', goal: 'Los', goalIcon: 'haus', goalText: 'bis Haus verlassen um', blocks: [
@@ -130,7 +130,7 @@
         ] },
         { id: 'abend', name: 'Abend', icon: 'mond', type: 'timeline', label: 'Dein Abend', goal: 'Bett', goalIcon: 'bett', goalText: 'bis ins Bett um', canShift: true, blocks: [
           { id: uid('b'), name: 'Abendessen', start: '18:30', end: '19:30', tasks: [T('Essen', 'essen'), T('1 Glas Wasser trinken', 'wasser'), T('Geschirr in die Küche', 'geschirr')] },
-          { id: uid('b'), name: 'Hochgehen & Bad', start: '19:30', end: '20:00', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Haare flechten', 'zopf'), T('Gesicht waschen', 'gesicht'), T('Schlafanzug anziehen', 'mond'), T('Unterhose & Socken in die Wäsche', 'waesche'), T('Kleidung aufhängen', 'buegel'), T('Spray nehmen', 'spray')] }
+          { id: uid('b'), name: 'Hochgehen & Bad', start: '19:30', end: '20:00', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare flechten', 'zopf'), T('Gesicht waschen', 'gesicht'), T('Schlafanzug anziehen', 'mond'), T('Unterhose & Socken in die Wäsche', 'waesche'), T('Kleidung aufhängen', 'buegel'), T('Spray nehmen', 'spray')] }
         ] }
       ]
     };
@@ -224,6 +224,16 @@
       if (at >= 0) eb.tasks.splice(at + 1, 0, bt); else eb.tasks.push(bt);
     }
     config.version = 6;
+    store(CONFIG_KEY, config);
+  }
+  /* Version 7: auch abends kein „Haare kämmen“ mehr (gekämmt wird nur nass beim Waschen) */
+  if (config.version < 7) {
+    config.routines.forEach(function (r) {
+      (r.blocks || []).forEach(function (b) {
+        b.tasks = b.tasks.filter(function (t) { return !/^\s*haare\s*k(ä|ae)mmen\s*$/i.test(t.name || ''); });
+      });
+    });
+    config.version = 7;
     store(CONFIG_KEY, config);
   }
   function saveConfig() { store(CONFIG_KEY, config); }
