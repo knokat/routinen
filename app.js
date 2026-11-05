@@ -116,13 +116,13 @@
   }
   function defaultConfig() {
     return {
-      version: 5,
+      version: 6,
       pin: '',
       routines: [
         { id: 'morgen', name: 'Morgen', icon: 'sonne', type: 'timeline', label: 'Dein Morgen', goal: 'Los', goalIcon: 'haus', goalText: 'bis Haus verlassen um', blocks: [
           { id: uid('b'), name: 'Aufstehen', start: '06:15', end: '06:30', tasks: [T('Nach unten gehen', 'treppe', { hint: 'um 6:30 am Tisch sitzen' })] },
           { id: uid('b'), name: 'Frühstück', start: '06:30', end: '06:50', tasks: [T('Essen', 'essen'), T('1 Glas Wasser trinken', 'wasser'), T('Concerta nehmen', 'pille'), T('Geschirr in die Küche', 'geschirr')] },
-          { id: uid('b'), name: 'Bad & Umziehen', start: '06:50', end: '07:10', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Anziehen', 'shirt'), T('Schlafanzug ins Zimmer', 'mond')] },
+          { id: uid('b'), name: 'Bad & Umziehen', start: '06:50', end: '07:10', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Gesicht waschen', 'gesicht'), T('Anziehen', 'shirt'), T('Schlafanzug ins Zimmer', 'mond')] },
           { id: uid('b'), name: 'Schuhe & Jacke', start: '07:10', end: '07:20', tasks: [T('Haare zusammenbinden', 'zopf', { days: [1, 3] }), T('Schuhe anziehen', 'schuh', { days: SCHOOL }), T('Jacke anziehen', 'jacke', { days: SCHOOL }), T('Jause einpacken', 'apfel', { days: SCHOOL }), T('Schulranzen anschnallen', 'rucksack', { days: SCHOOL }), T('Handschuhe & Mütze', 'muetze', { optional: true, days: SCHOOL })] }
         ] },
         { id: 'mittag', name: 'Nach der Schule', icon: 'haus', type: 'checklist', tasks: [
@@ -130,7 +130,7 @@
         ] },
         { id: 'abend', name: 'Abend', icon: 'mond', type: 'timeline', label: 'Dein Abend', goal: 'Bett', goalIcon: 'bett', goalText: 'bis ins Bett um', canShift: true, blocks: [
           { id: uid('b'), name: 'Abendessen', start: '18:30', end: '19:30', tasks: [T('Essen', 'essen'), T('1 Glas Wasser trinken', 'wasser'), T('Geschirr in die Küche', 'geschirr')] },
-          { id: uid('b'), name: 'Hochgehen & Bad', start: '19:30', end: '20:00', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Gesicht waschen', 'gesicht'), T('Schlafanzug anziehen', 'mond'), T('Unterhose & Socken in die Wäsche', 'waesche'), T('Kleidung aufhängen', 'buegel'), T('Spray nehmen', 'spray')] }
+          { id: uid('b'), name: 'Hochgehen & Bad', start: '19:30', end: '20:00', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Haare kämmen', 'kamm'), T('Haare flechten', 'zopf'), T('Gesicht waschen', 'gesicht'), T('Schlafanzug anziehen', 'mond'), T('Unterhose & Socken in die Wäsche', 'waesche'), T('Kleidung aufhängen', 'buegel'), T('Spray nehmen', 'spray')] }
         ] }
       ]
     };
@@ -205,6 +205,25 @@
       });
     });
     config.version = 5;
+    store(CONFIG_KEY, config);
+  }
+  /* Version 6: Locken – morgens nicht mehr kämmen, dafür abends Haare flechten */
+  if (config.version < 6) {
+    var rm = config.routines[0], ra = config.routines[2];
+    (rm.blocks || []).forEach(function (b) {
+      b.tasks = b.tasks.filter(function (t) { return !/^\s*haare\s*k(ä|ae)mmen\s*$/i.test(t.name || ''); });
+    });
+    var hasBraid = (ra.blocks || []).some(function (b) { return b.tasks.some(function (t) { return /flecht/i.test(t.name || ''); }); });
+    if (!hasBraid && ra.blocks && ra.blocks.length) {
+      var eb = null;
+      ra.blocks.forEach(function (b) { if (!eb && /bad/i.test(b.name || '')) eb = b; });
+      eb = eb || ra.blocks[ra.blocks.length - 1];
+      var at = -1;
+      eb.tasks.forEach(function (t, i) { if (/haare\s*k(ä|ae)mmen/i.test(t.name || '')) at = i; });
+      var bt = T('Haare flechten', 'zopf');
+      if (at >= 0) eb.tasks.splice(at + 1, 0, bt); else eb.tasks.push(bt);
+    }
+    config.version = 6;
     store(CONFIG_KEY, config);
   }
   function saveConfig() { store(CONFIG_KEY, config); }
