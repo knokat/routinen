@@ -19,6 +19,7 @@
     gesicht: '<circle cx="10" cy="14" r="7"/><path d="M7 16.3c1.6 1.4 4.4 1.4 6 0"/><path d="M7.5 12h.01M12.5 12h.01"/><path d="M19.5 2.5c1.2 1.6 2 2.7 2 3.7a2 2 0 0 1-4 0c0-1 .8-2.1 2-3.7z"/>',
     shirt: '<path d="M8.5 3.5L3.5 6l-1.5 5 3.2 1.2V20.5h13.6v-8.3L22 11l-1.5-5-5-2.5c-.4 1.7-1.8 2.8-3.5 2.8S8.9 5.2 8.5 3.5z"/>',
     zopf: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="5.5"/>',
+    ukulele: '<path d="M9.14 13.52A3.5 3.5 0 1 1 14.86 13.52A4.5 4.5 0 1 1 9.14 13.52z"/><circle cx="12" cy="16" r="1.3"/><path d="M10.4 19.2h3.2"/><path d="M11 8.1V4h2v4.1"/><rect x="10.2" y="1.6" width="3.6" height="2.6" rx="0.8"/>',
     schuh: '<path d="M2.5 17V8.5h5l2 3 6 1.8c3 .9 5.5 1.7 5.5 3.7v1z"/><path d="M2.5 17v2.5h19V17"/><path d="M10.5 12.5l1.2-1.6M13 13.3l1.2-1.6"/>',
     jacke: '<path d="M8.5 3.5L4 6.5v14h16v-14l-4.5-3"/><path d="M8.5 3.5L12 8l3.5-4.5"/><path d="M12 8v12.5"/><path d="M4 11h3M17 11h3"/>',
     apfel: '<path d="M12 8c-1.5-1-3.5-1.3-5-.5-2.5 1.3-3.2 4.6-2.2 7.8C5.8 18.2 8 21 10 21c.8 0 1.3-.4 2-.4s1.2.4 2 .4c2 0 4.2-2.8 5.2-6.2 1-3.2.3-6.5-2.2-7.8-1.5-.8-3.5-.5-5 .5z"/><path d="M12 8c0-2 .5-3.5 2-4.5"/><path d="M13 6c1.2-1.6 3.2-2.2 5-1.6-.6 1.9-2.6 2.6-5 1.6z"/>',
@@ -59,10 +60,10 @@
     zu: '<path d="M6 6l12 12M18 6L6 18"/>',
     nochmal: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/>'
   };
-  var TASK_ICONS = ['treppe', 'essen', 'wasser', 'pille', 'geschirr', 'zahn', 'kamm', 'gesicht', 'shirt', 'zopf', 'schuh', 'jacke',
+  var TASK_ICONS = ['treppe', 'essen', 'wasser', 'pille', 'geschirr', 'zahn', 'kamm', 'gesicht', 'shirt', 'zopf', 'schuh', 'jacke', 'ukulele',
     'apfel', 'rucksack', 'muetze', 'buegel', 'flasche', 'heft', 'buch', 'mond', 'waesche', 'spray', 'tropfen', 'bett', 'haus', 'sonne', 'ball', 'stern', 'uhr'];
   var ICON_NAMES = { treppe: 'Treppe', essen: 'Besteck', wasser: 'Glas', pille: 'Tablette', geschirr: 'Teller', zahn: 'Zahn', kamm: 'Kamm',
-    gesicht: 'Gesicht', shirt: 'T-Shirt', zopf: 'Haargummi', schuh: 'Schuh', jacke: 'Jacke', apfel: 'Apfel', rucksack: 'Schulranzen',
+    gesicht: 'Gesicht', shirt: 'T-Shirt', zopf: 'Haargummi', ukulele: 'Ukulele', schuh: 'Schuh', jacke: 'Jacke', apfel: 'Apfel', rucksack: 'Schulranzen',
     muetze: 'Mütze', buegel: 'Kleiderbügel', flasche: 'Trinkflasche', heft: 'Heft', buch: 'Buch', mond: 'Mond', waesche: 'Wäschekorb',
     spray: 'Spray', tropfen: 'Tropfen', bett: 'Bett', haus: 'Haus', sonne: 'Sonne', ball: 'Ball', stern: 'Stern', uhr: 'Uhr' };
 
@@ -116,14 +117,14 @@
   }
   function defaultConfig() {
     return {
-      version: 7,
+      version: 8,
       pin: '',
       routines: [
         { id: 'morgen', name: 'Morgen', icon: 'sonne', type: 'timeline', label: 'Dein Morgen', goal: 'Los', goalIcon: 'haus', goalText: 'bis Haus verlassen um', blocks: [
           { id: uid('b'), name: 'Aufstehen', start: '06:15', end: '06:30', tasks: [T('Nach unten gehen', 'treppe', { hint: 'um 6:30 am Tisch sitzen' })] },
           { id: uid('b'), name: 'Frühstück', start: '06:30', end: '06:50', tasks: [T('Essen', 'essen'), T('1 Glas Wasser trinken', 'wasser'), T('Concerta nehmen', 'pille'), T('Geschirr in die Küche', 'geschirr')] },
           { id: uid('b'), name: 'Bad & Umziehen', start: '06:50', end: '07:10', tasks: [T('Zähne putzen', 'zahn', { steps: brushSteps() }), T('Gesicht waschen', 'gesicht'), T('Anziehen', 'shirt'), T('Schlafanzug ins Zimmer', 'mond')] },
-          { id: uid('b'), name: 'Schuhe & Jacke', start: '07:10', end: '07:20', tasks: [T('Haare zusammenbinden', 'zopf', { days: [1, 3] }), T('Schuhe anziehen', 'schuh', { days: SCHOOL }), T('Jacke anziehen', 'jacke', { days: SCHOOL }), T('Jause einpacken', 'apfel', { days: SCHOOL }), T('Schulranzen anschnallen', 'rucksack', { days: SCHOOL }), T('Handschuhe & Mütze', 'muetze', { optional: true, days: SCHOOL })] }
+          { id: uid('b'), name: 'Schuhe & Jacke', start: '07:10', end: '07:20', tasks: [T('Haare zusammenbinden', 'zopf', { days: [1, 3] }), T('Schuhe anziehen', 'schuh', { days: SCHOOL }), T('Jacke anziehen', 'jacke', { days: SCHOOL }), T('Jause einpacken', 'apfel', { days: SCHOOL }), T('Schulranzen anschnallen', 'rucksack', { days: SCHOOL }), T('Ukulele mitnehmen', 'ukulele', { days: [3] }), T('Handschuhe & Mütze', 'muetze', { optional: true, days: SCHOOL })] }
         ] },
         { id: 'mittag', name: 'Nach der Schule', icon: 'haus', type: 'checklist', tasks: [
           T('Jacke aufhängen', 'buegel', { days: SCHOOL }), T('Jausebox in die Küche stellen', 'apfel', { days: SCHOOL }), T('Trinkflasche in die Küche stellen', 'flasche', { days: SCHOOL }), T('HÜ machen', 'heft', { days: SCHOOL })
@@ -234,6 +235,20 @@
       });
     });
     config.version = 7;
+    store(CONFIG_KEY, config);
+  }
+  /* Version 8: mittwochs „Ukulele mitnehmen“ im letzten Morgen-Block (nach „Schulranzen anschnallen“) */
+  if (config.version < 8) {
+    var mbs = (config.routines[0].blocks || []).slice().sort(function (a, b) { return toMin(a.start) - toMin(b.start); });
+    var last = mbs[mbs.length - 1];
+    var hasUke = (config.routines[0].blocks || []).some(function (b) { return b.tasks.some(function (t) { return /ukulele/i.test(t.name || ''); }); });
+    if (last && !hasUke) {
+      var pos = -1;
+      last.tasks.forEach(function (t, i) { if (/schulranzen/i.test(t.name || '')) pos = i; });
+      var ut = T('Ukulele mitnehmen', 'ukulele', { days: [3] });
+      if (pos >= 0) last.tasks.splice(pos + 1, 0, ut); else last.tasks.push(ut);
+    }
+    config.version = 8;
     store(CONFIG_KEY, config);
   }
   function saveConfig() { store(CONFIG_KEY, config); }
